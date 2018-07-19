@@ -1,0 +1,4 @@
+LeftNearestDepthValue          2031.588498                 # Nearest depth value of left image from camera or the origin of 3D space
+LeftFarthestDepthValue         7784.110870                 # Farthest depth value of left image from camera or the origin of 3D space
+RightNearestDepthValue         2031.588498                 # Nearest depth value of right image from camera or the origin of 3D space
+RightFarthestDepthValue        7784.110870                 # Farthest depth value of right image from camera or the origin of 3D space
