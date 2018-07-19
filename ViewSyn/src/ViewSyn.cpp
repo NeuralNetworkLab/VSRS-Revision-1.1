@@ -1,4 +1,4 @@
-/*
+﻿/*
 * View Synthesis Reference Software
 * ****************************************************************************
 * Copyright (c) 2011/2013 Poznan University of Technology
