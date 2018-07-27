@@ -3,3 +3,7 @@
 *.yuv
 *.bmp
 *.bat
+*.obj
+*.tlog
+*.pdb
+*.db

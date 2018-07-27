@@ -277,30 +277,33 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 			cv::Mat yuvImg(height * 3 / 2, width, CV_8UC1, pBuffer);   //read yuv to a  OpenCV Mat
 			cv::Mat bgrImg;  
 			cv::Mat maskImg(height, width, CV_8UC3);
-			for (int i= 0; i < height;i++)
+			cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
+			if (maskImg.channels() == 3)
 			{
-				for (int j = 0; j < width; j++)
+				for (int i = 0; i < height; i++)
 				{
-					if (maskImg.channels() == 3)
+					for (int j = 0; j < width; j++)
 					{
-						if (Y[i][j] == 0 && U[(int)i / 2][(int)j / 2] == 0 && V[(int)i / 2][(int)j / 2]==0)
+						if (Y[i][j] == 0)        //&& U[(int)i / 2][(int)j / 2] == 0 && V[(int)i / 2][(int)j / 2] == 0
 						{
-							maskImg.at<cv::Vec3b>(i, j)[0] = 255;
-							maskImg.at<cv::Vec3b>(i, j)[1] = 255;
-							maskImg.at<cv::Vec3b>(i, j)[2] = 255;
+							for (int k = 0; k < 3; k++)
+							{
+								maskImg.at<cv::Vec3b>(i, j)[k] = 255;
+								bgrImg.at<cv::Vec3b>(i, j)[k] = 255;
+							}
 						}                  //white color 
 						else
 						{
-							maskImg.at<cv::Vec3b>(i, j)[0] = 0;
-							maskImg.at<cv::Vec3b>(i, j)[1] = 0;
-							maskImg.at<cv::Vec3b>(i, j)[2] = 0;
+							for (int k = 0; k < 3; k++)
+							{
+								maskImg.at<cv::Vec3b>(i, j)[k] = 0;
+							}
 						}                   //black color
-					}	
+					}
 				}
 			}
-			cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
-			cv::imwrite("MaskMap.bmp", maskImg);
-			cv::imwrite("HoleMap.bmp", bgrImg);
+			cv::imwrite("MaskMap.png", maskImg);
+			cv::imwrite("HoleMap.png", bgrImg);
 			break;
 		}
 	}

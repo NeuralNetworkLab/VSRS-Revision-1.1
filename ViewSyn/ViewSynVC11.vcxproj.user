@@ -4,4 +4,8 @@
     <LocalDebuggerCommandArguments>"D:\Image Imparting\VSRS-Revision-0.2\bin\ViewSynthesis_champagne38.cfg"</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerCommandArguments>..\bin\ViewSynthesis_champagne38.cfg</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
 </Project>
