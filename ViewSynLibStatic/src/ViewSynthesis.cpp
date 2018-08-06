@@ -196,7 +196,7 @@ void CViewInterpolationGeneral::cvexMedian(IplImage* dst)
 {
   IplImage* buf = cvCloneImage(dst);
   cvSmooth(buf, dst, CV_MEDIAN);
-  cvReleaseImage(&buf);
+  cvReleaseImage(&buf);          
 }
 
 void CViewInterpolationGeneral::cvexBilateral(IplImage* dst, int sigma_d, int sigma_c)
@@ -204,7 +204,7 @@ void CViewInterpolationGeneral::cvexBilateral(IplImage* dst, int sigma_d, int si
   IplImage* buf = cvCloneImage(dst);
   cvSmooth(buf, dst, CV_BILATERAL, sigma_d, sigma_c);
   cvReleaseImage(&buf);
-}
+}                                 // reserve edge
 
 void CViewInterpolationGeneral::erodebound(IplImage* bound, int flag)
 {
@@ -401,13 +401,12 @@ bool CViewInterpolationGeneral::Init(UInt uiWidth, UInt uiHeight, UInt uiPrecisi
   {
     m_pSuccessSynthesis[h] = (HoleType *) &(m_imgSuccessSynthesis->imageData[pos]);
   }
-
   if (uiPrecision == 1)
   {
     m_pFunc_DepthSynthesis = &CViewInterpolationGeneral::depthsynthesis_3Dwarp_ipel;
     m_pFunc_ViewSynthesisReverse = &CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp_ipel;
   }
-  else
+  else            //do this
   {
     m_pFunc_DepthSynthesis = &CViewInterpolationGeneral::depthsynthesis_3Dwarp;
     m_pFunc_ViewSynthesisReverse = &CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp;
@@ -792,23 +791,26 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
   median_filter_depth(m_imgVirtualDepth, m_imgTemp[0], m_imgSuccessSynthesis, m_imgMask[0], 1, 1, true);
   median_filter_depth(m_imgTemp[0], m_imgVirtualDepth, m_imgMask[0], m_imgSuccessSynthesis, 1, 1, true);
 #else
+  /* smooth the hole twice */
+  cvSaveImage("0.bmp", m_imgSuccessSynthesis);
   cvNot(m_imgSuccessSynthesis, m_imgHoles); // m_imgHoles express holes before smoothing
-  cvSmooth(m_imgHoles, m_imgTemp[0], CV_MEDIAN, window_size); // m_imgTemp[0] express holes after smoothing
-  cvAnd(m_imgSuccessSynthesis, m_imgTemp[0], m_imgMask[0]); // holes which were not holes before smoothing
+  cvSmooth(m_imgHoles, m_imgTemp[0], CV_MEDIAN, window_size); // m_imgTemp[0] express holes after smoothing    3*3 median filter
+  cvAnd(m_imgSuccessSynthesis, m_imgTemp[0], m_imgMask[0]); // holes which were not holes before smoothing   m_imgMask[0]=smoothHoles&pic
   cvCopy(m_imgHoles, m_imgTemp[0], m_imgMask[0]); // m_imgTemp[0] express holes before 2nd smoothing
+
 
   cvNot(m_imgTemp[0], m_imgSuccessSynthesis); // m_imgSuccessSynthesis express non-holes before 2nd smoothing
   cvSmooth(m_imgTemp[0], m_imgHoles, CV_MEDIAN, window_size); // m_imgHoles express holes after 2nd smoothing
   cvAnd(m_imgSuccessSynthesis, m_imgHoles, m_imgMask[1]); // holes which were not holes before 2nd smoothing
   cvCopy(m_imgTemp[0], m_imgHoles, m_imgMask[1]); // m_imgHoles express holes after 2nd smoothing
 
-//cvSaveImage("1.bmp", m_imgVirtualDepth);
+  cvSaveImage("1.bmp", m_imgVirtualDepth); 
   cvSmooth(m_imgVirtualDepth, m_imgDepthTemp[1], CV_MEDIAN, window_size); // 1st 3x3 median
   cvCopy(m_imgVirtualDepth, m_imgDepthTemp[1], m_imgMask[0]);
-  //cvSaveImage("2.bmp", m_imgTemp[1]);
+  cvSaveImage("2.bmp", m_imgDepthTemp[1]);
   cvSmooth(m_imgDepthTemp[1], m_imgVirtualDepth, CV_MEDIAN, window_size); // 2nd 3x3 median
   cvCopy(m_imgDepthTemp[1], m_imgVirtualDepth, m_imgMask[1]);
-  //cvSaveImage("3.bmp", m_imgVirtualDepth);
+  cvSaveImage("3.bmp", m_imgVirtualDepth);
 
   cvSmooth(m_imgHoles, m_imgTemp[0], CV_MEDIAN, window_size); // m_imgTemp[0] express holes after smoothing
   cvAnd(m_imgSuccessSynthesis, m_imgTemp[0], m_imgMask[0]); // holes which were not holes before smoothing
@@ -821,12 +823,12 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
 
   cvSmooth(m_imgVirtualDepth, m_imgDepthTemp[1], CV_MEDIAN, window_size); // 3rd 3x3 median
   cvCopy(m_imgVirtualDepth, m_imgDepthTemp[1], m_imgMask[0]);
-  //cvSaveImage("4.bmp", m_imgTemp[1]);
+  cvSaveImage("4.bmp", m_imgDepthTemp[1]);
   cvSmooth(m_imgDepthTemp[1], m_imgVirtualDepth, CV_MEDIAN, window_size); // 4th 3x3 median
   cvCopy(m_imgDepthTemp[1], m_imgVirtualDepth, m_imgMask[1]);
-  //cvSaveImage("5.bmp", m_imgVirtualDepth);
+  cvSaveImage("5.bmp", m_imgVirtualDepth);
 
-
+  cvSaveImage("7.bmp", m_imgHoles);
   cvNot(m_imgHoles, m_imgSuccessSynthesis);
 #endif
 
@@ -909,9 +911,10 @@ bool CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp(ImageType ***src, D
 #ifdef NICT_IVSRS
   }
 #endif
-  //cvSaveImage("6.bmp", m_imgVirtualImage);
-  //cvSaveImage("7.bmp", m_imgSuccessSynthesis);
-
+  cvSaveImage("6.bmp", m_imgVirtualImage);
+  cvSaveImage("7.bmp", m_imgSuccessSynthesis);
+  cvNot(m_imgSuccessSynthesis, m_imgHoles);
+  cvSaveImage("MaskMap.png", m_imgHoles);
   return true;
 }
 
@@ -1036,7 +1039,7 @@ int CViewInterpolationGeneral::median_filter_depth_wCheck(IplImage *srcDepth, Ip
   return ret;
 }
 
-bool CViewInterpolationGeneral::depthsynthesis_3Dwarp_ipel(DepthType **pDepthMap, ImageType ***src) //Why this is not modyfied like other for new hole filling?? <-- Since it is not useful.
+bool CViewInterpolationGeneral::depthsynthesis_3Dwarp_ipel(DepthType **pDepthMap, ImageType ***src) //Why this is not modyfied like other for new hole filling?? <-- Since it is not useful.<--Precision==2,so the pointer function won't use this
 {
   int h, w, u, v;
   int sigma_d = 20;
@@ -1164,619 +1167,625 @@ bool CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp_ipel(ImageType ***s
 
 int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType*** RefRight, DepthType** RefDepthLeft, DepthType** RefDepthRight, CIYuv<ImageType> *pSynYuvBuffer)
 {
-  //#ifdef _DEBUG
-  //  if(m_ucSetup!=3) return false;
-  //#endif
-  ImageType*** pRefLeft = RefLeft;
-  ImageType*** pRefRight = RefRight;
-  DepthType** pRefDepthLeft = RefDepthLeft;
-  DepthType** pRefDepthRight = RefDepthRight;
+	//#ifdef _DEBUG
+	//  if(m_ucSetup!=3) return false;
+	//#endif
+	ImageType*** pRefLeft = RefLeft;
+	ImageType*** pRefRight = RefRight;
+	DepthType** pRefDepthLeft = RefDepthLeft;
+	DepthType** pRefDepthRight = RefDepthRight;
 
-  if (!m_pcViewSynthesisLeft->xSynthesizeView(pRefLeft, pRefDepthLeft))  return false;
-  if (!m_pcViewSynthesisRight->xSynthesizeView(pRefRight, pRefDepthRight)) return false;
+	if (!m_pcViewSynthesisLeft->xSynthesizeView(pRefLeft, pRefDepthLeft))  return false;
+	//if (!m_pcViewSynthesisRight->xSynthesizeView(pRefRight, pRefDepthRight)) return false;
+	//synthesis leftview and rightview with holes,we don't do the rightview with holes
+	pSynYuvBuffer->setDataFromImgYUV(m_pcViewSynthesisLeft->getVirtualImage());
+	return 0;  //we needn't do BNR
+	// GIST added
+	if (m_imgSynLeftforBNR == NULL) { m_imgSynLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(ImageType) * 8, 3); }
+	if (m_imgSynRightforBNR == NULL) { m_imgSynRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(ImageType) * 8, 3); }
+	if (m_imgDepthLeftforBNR == NULL) { m_imgDepthLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(DepthType) * 8, 1); }
+	if (m_imgDepthRightforBNR == NULL) { m_imgDepthRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(DepthType) * 8, 1); }
+	if (m_imgHoleLeftforBNR == NULL) { m_imgHoleLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(HoleType) * 8, 1); }
+	if (m_imgHoleRightforBNR == NULL) { m_imgHoleRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(HoleType) * 8, 1); }
+	cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_imgSynLeftforBNR);
+	cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_imgSynRightforBNR);
+	cvCopy(m_pcViewSynthesisLeft->getVirtualDepthMap(), m_imgDepthLeftforBNR);
+	cvCopy(m_pcViewSynthesisRight->getVirtualDepthMap(), m_imgDepthRightforBNR);
+	cvCopy(m_pcViewSynthesisLeft->getHolePixels(), m_imgHoleLeftforBNR);
+	cvCopy(m_pcViewSynthesisRight->getHolePixels(), m_imgHoleRightforBNR);
+	// GIST end
 
-  // GIST added
-  if (m_imgSynLeftforBNR == NULL) { m_imgSynLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(ImageType) * 8, 3); }
-  if (m_imgSynRightforBNR == NULL) { m_imgSynRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(ImageType) * 8, 3); }
-  if (m_imgDepthLeftforBNR == NULL) { m_imgDepthLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(DepthType) * 8, 1); }
-  if (m_imgDepthRightforBNR == NULL) { m_imgDepthRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(DepthType) * 8, 1); }
-  if (m_imgHoleLeftforBNR == NULL) { m_imgHoleLeftforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(HoleType) * 8, 1); }
-  if (m_imgHoleRightforBNR == NULL) { m_imgHoleRightforBNR = cvCreateImage(cvSize(m_uiWidth, m_uiHeight), sizeof(HoleType) * 8, 1); }
-  cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_imgSynLeftforBNR);
-  cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_imgSynRightforBNR);
-  cvCopy(m_pcViewSynthesisLeft->getVirtualDepthMap(), m_imgDepthLeftforBNR);
-  cvCopy(m_pcViewSynthesisRight->getVirtualDepthMap(), m_imgDepthRightforBNR);
-  cvCopy(m_pcViewSynthesisLeft->getHolePixels(), m_imgHoleLeftforBNR);
-  cvCopy(m_pcViewSynthesisRight->getHolePixels(), m_imgHoleRightforBNR);
-  // GIST end
-
-  // pixels which will be replaced by pixels synthesized from right view
+	// pixels which will be replaced by pixels synthesized from right view
 #ifdef NICT_IVSRS
   // NICT start
-  if (m_uiIvsrsInpaint == 1)
-  {
-    cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // NICT use same hole mask
-  }
-  else
-  {
-    // NICT end
+	if (m_uiIvsrsInpaint == 1)
+	{
+		cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // NICT use same hole mask
+	}
+	else
+	{
+		// NICT end
 #endif
-    cvAnd(m_pcViewSynthesisLeft->getUnstablePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // Left dilated Mask[0] * Right Success -> Left Mask[3] // dilated hole fillable by Right 
+		cvAnd(m_pcViewSynthesisLeft->getUnstablePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // Left dilated Mask[0] * Right Success -> Left Mask[3] // dilated hole fillable by Right 
 #ifdef NICT_IVSRS
-  }
+	}
 #endif
 
-  if (ViewBlending == 1)
-  {
-    if (m_dWeightLeft >= m_dWeightRight)  // if closer to Left
-    {
-      cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_imgMask[3]);  // Right * Mask[3] -> Left // dilated hole may left
-    }
-    else                               // if closer to Right
-    {
-      cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getSynthesizedPixels()); // Right VirtualImage * success -> Left VirtualImage
-    }
-  }
-  else {
-    cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_imgMask[3]); // Right VirtualImage * hole fillabl by Right -> Left VirtualImage // Left hole is filled by Right
+	if (ViewBlending == 1)
+	{
+		if (m_dWeightLeft >= m_dWeightRight)  // if closer to Left
+		{
+			cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_imgMask[3]);  // Right * Mask[3] -> Left // dilated hole may left
+		}
+		else                               // if closer to Right
+		{
+			cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getSynthesizedPixels()); // Right VirtualImage * success -> Left VirtualImage
+		}
+	}
+	else {
+		cvCopy(m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getVirtualImage(), m_imgMask[3]); // Right VirtualImage * hole fillabl by Right -> Left VirtualImage // Left hole is filled by Right
 #ifdef NICT_IVSRS
 // NICT start
-    if (m_uiIvsrsInpaint == 1)
-    {
-      cvCopy(m_pcViewSynthesisRight->getVirtualDepthMap(), m_pcViewSynthesisLeft->getVirtualDepthMap(), m_imgMask[3]); // Right VirtualDepth * hole fillabl by Right -> Left VirtualDepth //NICT
-    }
-    // NICT end
+		if (m_uiIvsrsInpaint == 1)
+		{
+			cvCopy(m_pcViewSynthesisRight->getVirtualDepthMap(), m_pcViewSynthesisLeft->getVirtualDepthMap(), m_imgMask[3]); // Right VirtualDepth * hole fillabl by Right -> Left VirtualDepth //NICT
+		}
+		// NICT end
 #endif
-  }
+	}
 
-  // pixels which will be replaced by pixels synthesized from left view
+	// pixels which will be replaced by pixels synthesized from left view
 #ifdef NICT_IVSRS
   // NICT start
-  if (m_uiIvsrsInpaint == 1)
-  {
-    cvAnd(m_pcViewSynthesisRight->getHolePixels(), m_pcViewSynthesisLeft->getSynthesizedPixels(), m_imgMask[4]); // NICT use same hole mask
-  }
-  else
-  {
-    // NICT end
+	if (m_uiIvsrsInpaint == 1)
+	{
+		cvAnd(m_pcViewSynthesisRight->getHolePixels(), m_pcViewSynthesisLeft->getSynthesizedPixels(), m_imgMask[4]); // NICT use same hole mask
+	}
+	else
+	{
+		// NICT end
 #endif
-    cvAnd(m_pcViewSynthesisRight->getUnstablePixels(), m_pcViewSynthesisLeft->getSynthesizedPixels(), m_imgMask[4]); // Right dilated Mask[0] * Left Success -> Mask[4] // dilated hole fillable by Left
+		cvAnd(m_pcViewSynthesisRight->getUnstablePixels(), m_pcViewSynthesisLeft->getSynthesizedPixels(), m_imgMask[4]); // Right dilated Mask[0] * Left Success -> Mask[4] // dilated hole fillable by Left
 #ifdef NICT_IVSRS
-  }
+	}
 #endif
 
 
-  if (ViewBlending == 1)
-  {
-    if (m_dWeightLeft <= m_dWeightRight) // if closer to Right
-    {
-      cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_imgMask[4]); // Left VirtualImage * Mask[4] -> Right VirtualImage
-    }
-    else                              // if close to Left
-    {
-      cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getSynthesizedPixels()); // Left VirtualImage * success -> Right VirtualImage
-    }
-  }
-  else {
-    cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_imgMask[4]); // Left VirtualImage * hole fillable by Left ->Right VirtualImage
+	if (ViewBlending == 1)
+	{
+		if (m_dWeightLeft <= m_dWeightRight) // if closer to Right
+		{
+			cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_imgMask[4]); // Left VirtualImage * Mask[4] -> Right VirtualImage
+		}
+		else                              // if close to Left
+		{
+			cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_pcViewSynthesisLeft->getSynthesizedPixels()); // Left VirtualImage * success -> Right VirtualImage
+		}
+	}
+	else {
+		cvCopy(m_pcViewSynthesisLeft->getVirtualImage(), m_pcViewSynthesisRight->getVirtualImage(), m_imgMask[4]); // Left VirtualImage * hole fillable by Left ->Right VirtualImage
 #ifdef NICT_IVSRS
   // NICT start
-    if (m_uiIvsrsInpaint == 1)
-    {
-      cvCopy(m_pcViewSynthesisLeft->getVirtualDepthMap(), m_pcViewSynthesisRight->getVirtualDepthMap(), m_imgMask[4]); // Left VirtualDedpth * hole fillable by Left ->Right VirtualDepth // NICT
-    }
-    // NICT end
+		if (m_uiIvsrsInpaint == 1)
+		{
+			cvCopy(m_pcViewSynthesisLeft->getVirtualDepthMap(), m_pcViewSynthesisRight->getVirtualDepthMap(), m_imgMask[4]); // Left VirtualDedpth * hole fillable by Left ->Right VirtualDepth // NICT
+		}
+		// NICT end
 #endif
-  }
+	}
 
-  // pixels which couldn't be synthesized from both left and right -> inpainting
-  cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getHolePixels(), m_imgMask[2]); // Left Hole * Right Hole -> Mask[2] // common hole, 
+	// pixels which couldn't be synthesized from both left and right -> inpainting
+	cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getHolePixels(), m_imgMask[2]); // Left Hole * Right Hole -> Mask[2] // common hole, 
 
 #ifdef POZNAN_DEPTH_BLEND
 #define GETUCHAR(x,ptr) (((unsigned char*)x)[ptr])
-  IplImage *DepthLeft = m_pcViewSynthesisLeft->getVirtualDepthMap();
-  IplImage *DepthRight = m_pcViewSynthesisRight->getVirtualDepthMap();
-  IplImage *ImageLeft = m_pcViewSynthesisLeft->getVirtualImage();
-  IplImage *ImageRight = m_pcViewSynthesisRight->getVirtualImage();
-  IplImage *SynthesizedLeft = m_pcViewSynthesisLeft->getHolePixels();
-  IplImage *SynthesizedRight = m_pcViewSynthesisRight->getHolePixels();
-  for (int h = 0; h < m_uiHeight; h++)
-  {
-    for (int w = 0; w < m_uiWidth; w++)
-    {
-      int ptv = w + h * m_uiWidth;
-      m_imgBlended->imageData[ptv * 3 + 0] = 0;
-      m_imgBlended->imageData[ptv * 3 + 1] = 0;
-      m_imgBlended->imageData[ptv * 3 + 2] = 0;
-      if (m_imgMask[2]->imageData[ptv] != 0) continue;
-      // NICT start
-      if ((abs(((DepthType*)DepthLeft->imageData[ptv]) - ((DepthType*)DepthRight->imageData[ptv])) < m_iDepthBlendDiff)) // left and right are close to each other (NICT)
-// NICT end
-      {
-        ((ImageType*)m_imgBlended->imageData)[ptv * 3 + 0] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 0] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 0] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
-        ((ImageType*)m_imgBlended->imageData)[ptv * 3 + 1] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 1] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 1] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
-        ((ImageType*)m_imgBlended->imageData)[ptv * 3 + 2] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 2] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 2] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
-        // NICT start
+	IplImage *DepthLeft = m_pcViewSynthesisLeft->getVirtualDepthMap();
+	IplImage *DepthRight = m_pcViewSynthesisRight->getVirtualDepthMap();
+	IplImage *ImageLeft = m_pcViewSynthesisLeft->getVirtualImage();
+	IplImage *ImageRight = m_pcViewSynthesisRight->getVirtualImage();
+	IplImage *SynthesizedLeft = m_pcViewSynthesisLeft->getHolePixels();
+	IplImage *SynthesizedRight = m_pcViewSynthesisRight->getHolePixels();
+	for (int h = 0; h < m_uiHeight; h++)
+	{
+		for (int w = 0; w < m_uiWidth; w++)
+		{
+			int ptv = w + h * m_uiWidth;
+			m_imgBlended->imageData[ptv * 3 + 0] = 0;
+			m_imgBlended->imageData[ptv * 3 + 1] = 0;
+			m_imgBlended->imageData[ptv * 3 + 2] = 0;
+			if (m_imgMask[2]->imageData[ptv] != 0) continue;
+			// NICT start
+			if ((abs(((DepthType*)DepthLeft->imageData[ptv]) - ((DepthType*)DepthRight->imageData[ptv])) < m_iDepthBlendDiff)) // left and right are close to each other (NICT)
+	  // NICT end
+			{
+				((ImageType*)m_imgBlended->imageData)[ptv * 3 + 0] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 0] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 0] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
+				((ImageType*)m_imgBlended->imageData)[ptv * 3 + 1] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 1] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 1] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
+				((ImageType*)m_imgBlended->imageData)[ptv * 3 + 2] = CLIP3((((ImageType*)ImageLeft->imageData)[ptv * 3 + 2] * m_dWeightLeft + ((ImageType*)ImageRight->imageData)[ptv * 3 + 2] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_LUMA - 1);
+				// NICT start
 #ifdef NICT_IVSRS
-        if (m_uiIvsrsInpaint == 1)
-        {
-          ((DepthType*)m_imgBlendedDepth->imageData)[ptv] = CLIP3((((DepthType*)DepthLeft->imageData)[ptv] * m_dWeightLeft + ((DepthType*)DepthRight->imageData)[ptv] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_DEPTH - 1);
-        }
+				if (m_uiIvsrsInpaint == 1)
+				{
+					((DepthType*)m_imgBlendedDepth->imageData)[ptv] = CLIP3((((DepthType*)DepthLeft->imageData)[ptv] * m_dWeightLeft + ((DepthType*)DepthRight->imageData)[ptv] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_DEPTH - 1);
+				}
 #endif
-        // NICT end	  
-      }
-      // NICT start
-      else if ((((DepthType*)DepthLeft->imageData[ptv]) > ((DepthType*)DepthRight->imageData[ptv]))) //Fix to compare z // left is nearer (NICT)
-// NICT end
-      {
-        m_imgBlended->imageData[ptv * 3 + 0] = ImageLeft->imageData[ptv * 3 + 0];
-        m_imgBlended->imageData[ptv * 3 + 1] = ImageLeft->imageData[ptv * 3 + 1];
-        m_imgBlended->imageData[ptv * 3 + 2] = ImageLeft->imageData[ptv * 3 + 2];
-        // NICT start
+				// NICT end	  
+			}
+			// NICT start
+			else if ((((DepthType*)DepthLeft->imageData[ptv]) > ((DepthType*)DepthRight->imageData[ptv]))) //Fix to compare z // left is nearer (NICT)
+	  // NICT end
+			{
+				m_imgBlended->imageData[ptv * 3 + 0] = ImageLeft->imageData[ptv * 3 + 0];
+				m_imgBlended->imageData[ptv * 3 + 1] = ImageLeft->imageData[ptv * 3 + 1];
+				m_imgBlended->imageData[ptv * 3 + 2] = ImageLeft->imageData[ptv * 3 + 2];
+				// NICT start
 #ifdef NICT_IVSRS
-        if (m_uiIvsrsInpaint == 1)
-        {
-          m_imgBlendedDepth->imageData[ptv] = DepthLeft->imageData[ptv];
-        }
+				if (m_uiIvsrsInpaint == 1)
+				{
+					m_imgBlendedDepth->imageData[ptv] = DepthLeft->imageData[ptv];
+				}
 # endif
-        // NICT end	  
-      }
-      else /*if((m_imgMask[3]->imageData[ptv]!=0))*/ //Fix should be mixed together // Right is closer
-      {
-        m_imgBlended->imageData[ptv * 3 + 0] = ImageRight->imageData[ptv * 3 + 0];
-        m_imgBlended->imageData[ptv * 3 + 1] = ImageRight->imageData[ptv * 3 + 1];
-        m_imgBlended->imageData[ptv * 3 + 2] = ImageRight->imageData[ptv * 3 + 2];
-        // NICT start
+				// NICT end	  
+			}
+			else /*if((m_imgMask[3]->imageData[ptv]!=0))*/ //Fix should be mixed together // Right is closer
+			{
+				m_imgBlended->imageData[ptv * 3 + 0] = ImageRight->imageData[ptv * 3 + 0];
+				m_imgBlended->imageData[ptv * 3 + 1] = ImageRight->imageData[ptv * 3 + 1];
+				m_imgBlended->imageData[ptv * 3 + 2] = ImageRight->imageData[ptv * 3 + 2];
+				// NICT start
 #ifdef NICT_IVSRS
-        if (m_uiIvsrsInpaint == 1)
-        {
-          m_imgBlendedDepth->imageData[ptv] = DepthRight->imageData[ptv];
-        }
+				if (m_uiIvsrsInpaint == 1)
+				{
+					m_imgBlendedDepth->imageData[ptv] = DepthRight->imageData[ptv];
+				}
 # endif
-        // NICT end	  
-      }
-    }
-  }
-  //m_imgBlended
+				// NICT end	  
+			}
+		}
+	}
+	//m_imgBlended
 
 #else 
-  cvAddWeighted(m_pcViewSynthesisLeft->getVirtualImage(), m_dWeightLeft, m_pcViewSynthesisRight->getVirtualImage(), m_dWeightRight, 0, m_imgBlended); // Left VImage * LWeight + Rigt VImage * RWeight -> Blended
+	cvAddWeighted(m_pcViewSynthesisLeft->getVirtualImage(), m_dWeightLeft, m_pcViewSynthesisRight->getVirtualImage(), m_dWeightRight, 0, m_imgBlended); // Left VImage * LWeight + Rigt VImage * RWeight -> Blended
 #endif
 
 #ifdef NICT_IVSRS
-  if (m_uiIvsrsInpaint == 1)
-  {
-    int hptv, ptv, var;
-    bool holeflag, inpaintflag, lflag, mflag, rflag, filterflag;
-    bool llflag, lmflag, mrflag, rrflag;
-    int leftptv, rightptv, delta, midptv, lptv, mptv, rptv, refptv, varptv;
-    int llptv, lmptv, mrptv, rrptv;
-    int ref;
-    int refdepth;
-    int v, leftw, rightw, middle, left, right;
+	if (m_uiIvsrsInpaint == 1)
+	{
+		int hptv, ptv, var;
+		bool holeflag, inpaintflag, lflag, mflag, rflag, filterflag;
+		bool llflag, lmflag, mrflag, rrflag;
+		int leftptv, rightptv, delta, midptv, lptv, mptv, rptv, refptv, varptv;
+		int llptv, lmptv, mrptv, rrptv;
+		int ref;
+		int refdepth;
+		int v, leftw, rightw, middle, left, right;
 
-    for (int h = 0; h < m_uiHeight; h++)
-    {
-      holeflag = false;
-      inpaintflag = false;
-      hptv = h * m_uiWidth;
-      for (int w = 0; w < m_uiWidth; w++)
-      {
-        ptv = w + hptv;
-        if (m_imgMask[2]->imageData[ptv] != 0) // hole
-        {
-          if (w == 0) // hole start at 0
-          {
-            holeflag = true;
-            leftw = w - 1;
-            leftptv = ptv - 1;
-            refdepth = MAX_DEPTH - 1; // set left depth(255) to ref depth
-          }
-          else if (w == m_uiWidth - 1) // hole end at W
-          {
-            inpaintflag = true;
-            rightw = w + 1;
-            rightptv = ptv + 1;
-            // check hole start
-            if (holeflag == false) // 1 pel hole
-            {
-              leftw = w - 1;
-              leftptv = ptv - 1;
-              refptv = leftptv;
-              refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv]; // set left depth to ref depth
-            }// else, left was set before
-          }
-          else if (holeflag == false) // hole start at middle
-          {
-            holeflag = true;
-            leftw = w - 1;
-            leftptv = ptv - 1;
-            refptv = leftptv;
-            refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv]; // set left depth to ref depth
-          } // else, middle in hole, do nothing
-        } // hole end
-        else // Mask[2] = 0 not hole
-        {
-          if (holeflag == true) // hole end
-          {
-            holeflag = false;
-            inpaintflag = true;
-            rightw = w;
-            rightptv = ptv;
-            if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rightptv]) // set right depth to ref depth
-            {
-              refptv = rightptv;
-              refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-            }
-          } // else, middle in not hole, do nothing
-        } // not hole end
+		for (int h = 0; h < m_uiHeight; h++)
+		{
+			holeflag = false;
+			inpaintflag = false;
+			hptv = h * m_uiWidth;
+			for (int w = 0; w < m_uiWidth; w++)
+			{
+				ptv = w + hptv;
+				if (m_imgMask[2]->imageData[ptv] != 0) // hole
+				{
+					if (w == 0) // hole start at 0
+					{
+						holeflag = true;
+						leftw = w - 1;
+						leftptv = ptv - 1;
+						refdepth = MAX_DEPTH - 1; // set left depth(255) to ref depth
+					}
+					else if (w == m_uiWidth - 1) // hole end at W
+					{
+						inpaintflag = true;
+						rightw = w + 1;
+						rightptv = ptv + 1;
+						// check hole start
+						if (holeflag == false) // 1 pel hole
+						{
+							leftw = w - 1;
+							leftptv = ptv - 1;
+							refptv = leftptv;
+							refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv]; // set left depth to ref depth
+						}// else, left was set before
+					}
+					else if (holeflag == false) // hole start at middle
+					{
+						holeflag = true;
+						leftw = w - 1;
+						leftptv = ptv - 1;
+						refptv = leftptv;
+						refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv]; // set left depth to ref depth
+					} // else, middle in hole, do nothing
+				} // hole end
+				else // Mask[2] = 0 not hole
+				{
+					if (holeflag == true) // hole end
+					{
+						holeflag = false;
+						inpaintflag = true;
+						rightw = w;
+						rightptv = ptv;
+						if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rightptv]) // set right depth to ref depth
+						{
+							refptv = rightptv;
+							refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+						}
+					} // else, middle in not hole, do nothing
+				} // not hole end
 
-        // inpaint
-        if (inpaintflag == true)
-        {
-          inpaintflag = false;
-          // search top ref
-          middle = (leftw + rightw) >> 1;
-          left = middle;
-          right = m_uiWidth - 1 - middle;
-          midptv = (leftptv + rightptv) >> 1;
-          mptv = midptv;
+				// inpaint
+				if (inpaintflag == true)
+				{
+					inpaintflag = false;
+					// search top ref
+					middle = (leftw + rightw) >> 1;
+					left = middle;
+					right = m_uiWidth - 1 - middle;
+					midptv = (leftptv + rightptv) >> 1;
+					mptv = midptv;
 
-          lflag = mflag = rflag = false;
-          llflag = lmflag = mrflag = rrflag = false;
+					lflag = mflag = rflag = false;
+					llflag = lmflag = mrflag = rrflag = false;
 
-          if (h < m_uiHeight * 2 / 3) // upper half, search sky
-          {
-            for (v = 1; v <= h; v++) // sesarch top
-            {
-              mptv -= m_uiWidth;
-              if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
-              {
-                mflag = true;
-                if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
-                {
-                  refptv = mptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nothing
+					if (h < m_uiHeight * 2 / 3) // upper half, search sky
+					{
+						for (v = 1; v <= h; v++) // sesarch top
+						{
+							mptv -= m_uiWidth;
+							if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
+							{
+								mflag = true;
+								if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
+								{
+									refptv = mptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nothing
 
-              delta = v << 1;
-              if (delta > left) llflag = true;
-              llptv = mptv - delta;
-              if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
-              {
-                llflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
-                {
-                  refptv = llptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nopthing
+							delta = v << 1;
+							if (delta > left) llflag = true;
+							llptv = mptv - delta;
+							if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
+							{
+								llflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
+								{
+									refptv = llptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nopthing
 
-              delta = v;
-              if (delta > left) lflag = true;
-              lptv = mptv - delta;
-              if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
-              {
-                lflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
-                {
-                  refptv = lptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nopthing
+							delta = v;
+							if (delta > left) lflag = true;
+							lptv = mptv - delta;
+							if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
+							{
+								lflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
+								{
+									refptv = lptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nopthing
 
-              delta = v >> 1;
-              if (delta > left) lmflag = true;
-              lmptv = mptv - delta;
-              if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
-              {
-                lmflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
-                {
-                  refptv = lmptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nopthing
+							delta = v >> 1;
+							if (delta > left) lmflag = true;
+							lmptv = mptv - delta;
+							if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
+							{
+								lmflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
+								{
+									refptv = lmptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nopthing
 
-              delta = v >> 1;
-              if (delta > right) mrflag = true;
-              mrptv = mptv + delta;
-              if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
-              {
-                mrflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
-                {
-                  refptv = mrptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nothing
+							delta = v >> 1;
+							if (delta > right) mrflag = true;
+							mrptv = mptv + delta;
+							if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
+							{
+								mrflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
+								{
+									refptv = mrptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nothing
 
-              delta = v;
+							delta = v;
 
-              if (delta > right) rflag = true;
-              rptv = mptv + delta;
-              if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
-              {
-                rflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
-                {
-                  refptv = rptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nothing
+							if (delta > right) rflag = true;
+							rptv = mptv + delta;
+							if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
+							{
+								rflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
+								{
+									refptv = rptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nothing
 
-              delta = v << 1;
-              if (delta > right) rrflag = true;
-              rrptv = mptv + delta;
-              if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
-              {
-                rrflag = true;
-                if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
-                {
-                  refptv = rrptv;
-                  refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-                }
-              } // else hole, do nothing
+							delta = v << 1;
+							if (delta > right) rrflag = true;
+							rrptv = mptv + delta;
+							if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
+							{
+								rrflag = true;
+								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
+								{
+									refptv = rrptv;
+									refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+								}
+							} // else hole, do nothing
 
-              if (llflag == true && lflag == true && lmflag == true && mflag == true && mrflag == true && rflag == true && rrflag == true) break; // stop search
-            } // v end
-          } // else lower half, do followings
+							if (llflag == true && lflag == true && lmflag == true && mflag == true && mrflag == true && rflag == true && rrflag == true) break; // stop search
+						} // v end
+					} // else lower half, do followings
 
-            // check bottom half, search farthest object
-          mptv = midptv;
-          lflag = mflag = rflag = false;
-          llflag = lmflag = mrflag = rrflag = false;
+					  // check bottom half, search farthest object
+					mptv = midptv;
+					lflag = mflag = rflag = false;
+					llflag = lmflag = mrflag = rrflag = false;
 
-          for (v = 1; v < m_uiHeight - h; v++) // sesarch bottom
-          {
-            mptv += m_uiWidth;
-            if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
-            {
-              mflag = true;
-              if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
-              {
-                refptv = mptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+					for (v = 1; v < m_uiHeight - h; v++) // sesarch bottom
+					{
+						mptv += m_uiWidth;
+						if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
+						{
+							mflag = true;
+							if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
+							{
+								refptv = mptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v << 1;
-            if (delta > left) llflag = true;
-            llptv = mptv - delta;
+						delta = v << 1;
+						if (delta > left) llflag = true;
+						llptv = mptv - delta;
 
-            if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
-            {
-              llflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
-              {
-                refptv = llptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
+						{
+							llflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
+							{
+								refptv = llptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v;
-            if (delta > left) lflag = true;
-            lptv = mptv - delta;
-            if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
-            {
-              lflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
-              {
-                refptv = lptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						delta = v;
+						if (delta > left) lflag = true;
+						lptv = mptv - delta;
+						if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
+						{
+							lflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
+							{
+								refptv = lptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v >> 1;
-            if (delta > left) lmflag = true;
-            lmptv = mptv - delta;
-            if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
-            {
-              lmflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
-              {
-                refptv = lmptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						delta = v >> 1;
+						if (delta > left) lmflag = true;
+						lmptv = mptv - delta;
+						if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
+						{
+							lmflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
+							{
+								refptv = lmptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v >> 1;
-            if (delta > right) mrflag = true;
-            mrptv = mptv + delta;
-            if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
-            {
-              mrflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
-              {
-                refptv = mrptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						delta = v >> 1;
+						if (delta > right) mrflag = true;
+						mrptv = mptv + delta;
+						if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
+						{
+							mrflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
+							{
+								refptv = mrptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v;
-            if (delta > right) rflag = true;
-            rptv = mptv + delta;
-            if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
-            {
-              rflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
-              {
-                refptv = rptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						delta = v;
+						if (delta > right) rflag = true;
+						rptv = mptv + delta;
+						if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
+						{
+							rflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
+							{
+								refptv = rptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            delta = v << 1;
-            if (delta > right) rrflag = true;
-            rrptv = mptv + delta;
-            if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
-            {
-              rrflag = true;
-              if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
-              {
-                refptv = rrptv;
-                refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
-              }
-            }
+						delta = v << 1;
+						if (delta > right) rrflag = true;
+						rrptv = mptv + delta;
+						if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
+						{
+							rrflag = true;
+							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
+							{
+								refptv = rrptv;
+								refdepth = (DepthType)m_imgBlendedDepth->imageData[refptv];
+							}
+						}
 
-            if (llflag == true && lflag == true && lmflag == true && mflag == true && mrflag == true && rflag == true && rrflag == true) break;
-          } // v for bottom half
+						if (llflag == true && lflag == true && lmflag == true && mflag == true && mrflag == true && rflag == true && rrflag == true) break;
+					} // v for bottom half
 
-          // inpaint
-      //		if(refdepth == 255) continue;	// do nothing	
-          ref = refptv * 3;
-          for (varptv = leftptv + 1; varptv < rightptv; varptv++)
-          {
-            var = varptv * 3;
-            m_imgBlended->imageData[var] = m_imgBlended->imageData[ref];
-            m_imgBlended->imageData[var + 1] = m_imgBlended->imageData[ref + 1];
-            m_imgBlended->imageData[var + 2] = m_imgBlended->imageData[ref + 2];
-          }
-        } // else no inpaintflag, do nothing
+					// inpaint
+				//		if(refdepth == 255) continue;	// do nothing	
+					ref = refptv * 3;
+					for (varptv = leftptv + 1; varptv < rightptv; varptv++)
+					{
+						var = varptv * 3;
+						m_imgBlended->imageData[var] = m_imgBlended->imageData[ref];
+						m_imgBlended->imageData[var + 1] = m_imgBlended->imageData[ref + 1];
+						m_imgBlended->imageData[var + 2] = m_imgBlended->imageData[ref + 2];
+					}
+				} // else no inpaintflag, do nothing
 
-      } // for w
-    } // for h
+			} // for w
+		} // for h
 
-    // NICT  cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, CV_INPAINT_NS); // inpaint
-    cvErode(m_imgMask[2], m_imgMask[2]); // use pre-inpainted pixels for smoothing
-    cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 3, CV_INPAINT_TELEA); // NICT use small kernel // smooth pre-inpainted area
+		// NICT  cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, CV_INPAINT_NS); // inpaint
+		cvErode(m_imgMask[2], m_imgMask[2]); // use pre-inpainted pixels for smoothing
+		cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 3, CV_INPAINT_TELEA); // NICT use small kernel // smooth pre-inpainted area
 
-    //  cvSaveImage("7.bmp", m_imgInterpolatedView); // NICT  
+		//  cvSaveImage("7.bmp", m_imgInterpolatedView); // NICT  
 
-    cvOr(m_imgMask[3], m_imgMask[4], m_imgMask[2]); // filled hole mask
+		cvOr(m_imgMask[3], m_imgMask[4], m_imgMask[2]); // filled hole mask
 
-    // NICT Edge filter start
-    // Horizontal edge detect
-    int varm6, varm5, varm4, varm3, varm2, varm1, var1, var2, var3, var4, var5;
+		// NICT Edge filter start
+		// Horizontal edge detect
+		int varm6, varm5, varm4, varm3, varm2, varm1, var1, var2, var3, var4, var5;
 
-    for (int h = 2; h < m_uiHeight - 1; h++)
-    {
-      holeflag = false;
-      filterflag = false;
-      hptv = h *  m_uiWidth;
+		for (int h = 2; h < m_uiHeight - 1; h++)
+		{
+			holeflag = false;
+			filterflag = false;
+			hptv = h *  m_uiWidth;
 
-      for (int w = 2; w < m_uiWidth - 1; w++)
-      {
-        ptv = w + hptv;
-        if (holeflag == false && m_imgMask[2]->imageData[ptv] != 0) // filled hole edge
-        {
-          holeflag = true;
-          if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2] - (DepthType)m_imgBlendedDepth->imageData[ptv + 1]) < m_iDepthBlendDiff)
-          {
-            filterflag = true;
-          }
-          else
-          {
-            filterflag = false;
-          }
-        }
-        else if (holeflag == true && m_imgMask[2]->imageData[ptv] == 0) // filled hole edge
-        {
-          holeflag = false;
-          // NICT start
-          //			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2] - (unsigned char)m_imgBlendedDepth->imageData[ptv+1]) < m_iDepthBlendDiff)
-          if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2] - (DepthType)m_imgBlendedDepth->imageData[ptv + 1]) < m_iDepthBlendDiff)
-            // NICT end
-            filterflag = true;
-          else filterflag = false;
-        }
+			for (int w = 2; w < m_uiWidth - 1; w++)
+			{
+				ptv = w + hptv;
+				if (holeflag == false && m_imgMask[2]->imageData[ptv] != 0) // filled hole edge
+				{
+					holeflag = true;
+					if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2] - (DepthType)m_imgBlendedDepth->imageData[ptv + 1]) < m_iDepthBlendDiff)
+					{
+						filterflag = true;
+					}
+					else
+					{
+						filterflag = false;
+					}
+				}
+				else if (holeflag == true && m_imgMask[2]->imageData[ptv] == 0) // filled hole edge
+				{
+					holeflag = false;
+					// NICT start
+					//			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2] - (unsigned char)m_imgBlendedDepth->imageData[ptv+1]) < m_iDepthBlendDiff)
+					if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2] - (DepthType)m_imgBlendedDepth->imageData[ptv + 1]) < m_iDepthBlendDiff)
+						// NICT end
+						filterflag = true;
+					else filterflag = false;
+				}
 
-        // Horizontal filtering
-        if (filterflag == true)
-        {
-          filterflag = false;
-          var = ptv * 3;
-          varm6 = var - 6, varm5 = var - 5, varm4 = var - 4, varm3 = var - 3, varm2 = var - 2, varm1 = var - 1, var1 = var + 1, var2 = var + 2, var3 = var + 3, var4 = var + 4, var5 = var + 5;
+				// Horizontal filtering
+				if (filterflag == true)
+				{
+					filterflag = false;
+					var = ptv * 3;
+					varm6 = var - 6, varm5 = var - 5, varm4 = var - 4, varm3 = var - 3, varm2 = var - 2, varm1 = var - 1, var1 = var + 1, var2 = var + 2, var3 = var + 3, var4 = var + 4, var5 = var + 5;
 
-          m_imgInterpolatedView->imageData[var] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
-          m_imgInterpolatedView->imageData[var1] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
-          m_imgInterpolatedView->imageData[var2] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
+					m_imgInterpolatedView->imageData[var] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
+					m_imgInterpolatedView->imageData[var1] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
+					m_imgInterpolatedView->imageData[var2] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
 
-          m_imgInterpolatedView->imageData[varm3] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var]) >> 1;
-          m_imgInterpolatedView->imageData[varm2] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var1]) >> 1;
-          m_imgInterpolatedView->imageData[varm1] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var2]) >> 1;
+					m_imgInterpolatedView->imageData[varm3] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var]) >> 1;
+					m_imgInterpolatedView->imageData[varm2] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var1]) >> 1;
+					m_imgInterpolatedView->imageData[varm1] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var2]) >> 1;
 
-          m_imgInterpolatedView->imageData[var3] = ((unsigned char)m_imgInterpolatedView->imageData[var] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
-          m_imgInterpolatedView->imageData[var4] = ((unsigned char)m_imgInterpolatedView->imageData[var1] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
-          m_imgInterpolatedView->imageData[var5] = ((unsigned char)m_imgInterpolatedView->imageData[var2] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
+					m_imgInterpolatedView->imageData[var3] = ((unsigned char)m_imgInterpolatedView->imageData[var] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
+					m_imgInterpolatedView->imageData[var4] = ((unsigned char)m_imgInterpolatedView->imageData[var1] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
+					m_imgInterpolatedView->imageData[var5] = ((unsigned char)m_imgInterpolatedView->imageData[var2] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
 
-        }
-      }
-    }
+				}
+			}
+		}
 
-    // Vertical edge detect
-    for (int w = 2; w < m_uiWidth - 1; w++)
-    {
-      holeflag = false;
-      filterflag = false;
-      for (int h = 2; h < m_uiHeight - 1; h++)
-      {
-        ptv = w + h *  m_uiWidth;
-        if (holeflag == false && m_imgMask[2]->imageData[ptv] != 0) // filled hole edge
-        {
-          holeflag = true;
-          // NICT start
-          //			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2*m_uiWidth] - (unsigned char)m_imgBlendedDepth->imageData[ptv+m_uiWidth]) < m_iDepthBlendDiff)
-          if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2 * m_uiWidth] - (DepthType)m_imgBlendedDepth->imageData[ptv + m_uiWidth]) < m_iDepthBlendDiff)
-            filterflag = true;
-          else filterflag = false;
-        }
-        else if (holeflag == true && m_imgMask[2]->imageData[ptv] == 0) // filled hole edge
-        {
-          holeflag = false;
-          // NICT start
-          //			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2*m_uiWidth] - (unsigned char)m_imgBlendedDepth->imageData[ptv+m_uiWidth]) < m_iDepthBlendDiff)
-          if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2 * m_uiWidth] - (DepthType)m_imgBlendedDepth->imageData[ptv + m_uiWidth]) < m_iDepthBlendDiff)
-            // NICT end
-            filterflag = true;
-          else filterflag = false;
-        }
+		// Vertical edge detect
+		for (int w = 2; w < m_uiWidth - 1; w++)
+		{
+			holeflag = false;
+			filterflag = false;
+			for (int h = 2; h < m_uiHeight - 1; h++)
+			{
+				ptv = w + h *  m_uiWidth;
+				if (holeflag == false && m_imgMask[2]->imageData[ptv] != 0) // filled hole edge
+				{
+					holeflag = true;
+					// NICT start
+					//			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2*m_uiWidth] - (unsigned char)m_imgBlendedDepth->imageData[ptv+m_uiWidth]) < m_iDepthBlendDiff)
+					if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2 * m_uiWidth] - (DepthType)m_imgBlendedDepth->imageData[ptv + m_uiWidth]) < m_iDepthBlendDiff)
+						filterflag = true;
+					else filterflag = false;
+				}
+				else if (holeflag == true && m_imgMask[2]->imageData[ptv] == 0) // filled hole edge
+				{
+					holeflag = false;
+					// NICT start
+					//			if(abs((unsigned char)m_imgBlendedDepth->imageData[ptv-2*m_uiWidth] - (unsigned char)m_imgBlendedDepth->imageData[ptv+m_uiWidth]) < m_iDepthBlendDiff)
+					if (abs((DepthType)m_imgBlendedDepth->imageData[ptv - 2 * m_uiWidth] - (DepthType)m_imgBlendedDepth->imageData[ptv + m_uiWidth]) < m_iDepthBlendDiff)
+						// NICT end
+						filterflag = true;
+					else filterflag = false;
+				}
 
-        // Vertical filtering
-        if (filterflag == true)
-        {
-          filterflag = false;
-          var = ptv * 3;
-          varm6 = var - 6 * m_uiWidth, varm5 = varm6 + 1, varm4 = varm6 + 2, varm3 = var - 3 * m_uiWidth, varm2 = varm3 + 1, varm1 = varm3 + 2, var1 = var + 1, var2 = var + 2, var3 = var + 3 * m_uiWidth, var4 = var3 + 1, var5 = var3 + 2;
+				// Vertical filtering
+				if (filterflag == true)
+				{
+					filterflag = false;
+					var = ptv * 3;
+					varm6 = var - 6 * m_uiWidth, varm5 = varm6 + 1, varm4 = varm6 + 2, varm3 = var - 3 * m_uiWidth, varm2 = varm3 + 1, varm1 = varm3 + 2, var1 = var + 1, var2 = var + 2, var3 = var + 3 * m_uiWidth, var4 = var3 + 1, var5 = var3 + 2;
 
-          m_imgInterpolatedView->imageData[var] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
-          m_imgInterpolatedView->imageData[var1] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
-          m_imgInterpolatedView->imageData[var2] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
+					m_imgInterpolatedView->imageData[var] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
+					m_imgInterpolatedView->imageData[var1] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
+					m_imgInterpolatedView->imageData[var2] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
 
-          m_imgInterpolatedView->imageData[varm3] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var]) >> 1;
-          m_imgInterpolatedView->imageData[varm2] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var1]) >> 1;
-          m_imgInterpolatedView->imageData[varm1] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var2]) >> 1;
+					m_imgInterpolatedView->imageData[varm3] = ((unsigned char)m_imgInterpolatedView->imageData[varm6] + (unsigned char)m_imgInterpolatedView->imageData[var]) >> 1;
+					m_imgInterpolatedView->imageData[varm2] = ((unsigned char)m_imgInterpolatedView->imageData[varm5] + (unsigned char)m_imgInterpolatedView->imageData[var1]) >> 1;
+					m_imgInterpolatedView->imageData[varm1] = ((unsigned char)m_imgInterpolatedView->imageData[varm4] + (unsigned char)m_imgInterpolatedView->imageData[var2]) >> 1;
 
-          m_imgInterpolatedView->imageData[var3] = ((unsigned char)m_imgInterpolatedView->imageData[var] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
-          m_imgInterpolatedView->imageData[var4] = ((unsigned char)m_imgInterpolatedView->imageData[var1] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
-          m_imgInterpolatedView->imageData[var5] = ((unsigned char)m_imgInterpolatedView->imageData[var2] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
+					m_imgInterpolatedView->imageData[var3] = ((unsigned char)m_imgInterpolatedView->imageData[var] + (unsigned char)m_imgInterpolatedView->imageData[var3]) >> 1;
+					m_imgInterpolatedView->imageData[var4] = ((unsigned char)m_imgInterpolatedView->imageData[var1] + (unsigned char)m_imgInterpolatedView->imageData[var4]) >> 1;
+					m_imgInterpolatedView->imageData[var5] = ((unsigned char)m_imgInterpolatedView->imageData[var2] + (unsigned char)m_imgInterpolatedView->imageData[var5]) >> 1;
 
-        }
-      }
-    }
-    // NICT start
-  }  // IvsrsInpaint = true
-  else
-  {
+				}
+			}
+		}
+		// NICT start
+	}  // IvsrsInpaint = true
+	else
+	{
 #endif
-    ///cvSaveImage("Mask2.bmp",m_imgMask[2]);
-    cvSet(m_imgBlended, CV_RGB(0, 128, 128), m_imgMask[2]);
-    cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, CV_INPAINT_NS);
-    //inpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, INPAINT_NS); 
+		///cvSaveImage("Mask2.bmp",m_imgMask[2]);
+		cvSet(m_imgBlended, CV_RGB(0, 128, 128), m_imgMask[2]);
+		cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, CV_INPAINT_NS);
+		//inpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, INPAINT_NS); 
 #ifdef NICT_IVSRS
-  }
+	}
 #endif
-// NICT end
+	// NICT end
 
-  if (m_uiColorSpace) {
-    pSynYuvBuffer->setDataFromImgBGR(m_imgInterpolatedView);
-  }
-  else
-	// 搜索 pSynYuvBuffer 找到代码
-
-    pSynYuvBuffer->setDataFromImgYUV(GetSynLeftWithHole());
-
+	if (m_uiColorSpace) {
+		pSynYuvBuffer->setDataFromImgBGR(m_imgInterpolatedView);
+	}
+	else
+		// 搜索 pSynYuvBuffer 找到代码
+	{
+		int sigma_d = 20;
+		int sigma_c = 50;
+		cvexMedian(m_imgSynLeftforBNR);                         //smooth the picture
+		cvexBilateral(m_imgSynLeftforBNR, sigma_d, sigma_c);
+		pSynYuvBuffer->setDataFromImgYUV(GetSynLeftWithHole());
+	}
   //#ifdef _DEBUG
   //  m_ucSetup-=2;
   //#endif

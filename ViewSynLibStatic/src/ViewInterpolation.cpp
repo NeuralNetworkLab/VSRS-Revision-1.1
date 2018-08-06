@@ -294,7 +294,7 @@ bool CViewInterpolation::xViewInterpolationGeneralMode(CIYuv<ImageType>* pSynYuv
   // 此处使用的是通用模型，而在 DoOneFrame 里面，有具体的 leftView 和 rightView
   // 考虑是否应该在那个函数里面获取具体的图像数据
   
-  //下面的代码是vsrs填充算法，可以忽略
+  //下面的代码是边界噪音除去算法，可以忽略
   if (getBoundaryNoiseRemoval())  {
       CIYuv<ImageType> pRefLeft;
 	  CIYuv<ImageType> pRefRight;

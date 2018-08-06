@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 	if (cParameter.Init(argc, argv) != 1) return 0;    //check parameters and save these parameters
 	if (!cViewInterpolation.Init(cParameter)) return 10;    //initial parameters 
 
-	if (!yuvBuffer.resize(cParameter.getSourceHeight(), cParameter.getSourceWidth(), 420)) return 2;
+	if (!yuvBuffer.resize(cParameter.getSourceHeight(), cParameter.getSourceWidth(), 420)) return 2;  //get yuv data of picture and allocate memory
 
 	FILE *fin_view_r, *fin_view_l, *fin_depth_r, *fin_depth_l, *fout;
 
@@ -103,11 +103,11 @@ int main(int argc, char *argv[])
 	}
 	printf(".");
 
-	cViewInterpolation.setFrameNumber(n - cParameter.getStartFrame()); 
+	cViewInterpolation.setFrameNumber(n - cParameter.getStartFrame());   //the index the frame
 
 	// 读取视图的一帧
 	if (!yuvBuffer.readOneFrame(fin_view_l, n)) return 3;
-	// 用 1, 0 来指定是 left 还是 right
+	// 并在CViewInterpolation中载入左右视图数据，用 1, 0 来指定是 left 还是 right
 	if (!cViewInterpolation.SetReferenceImage(1, &yuvBuffer))return 3;
 	printf(".");
 

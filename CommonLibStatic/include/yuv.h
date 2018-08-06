@@ -278,8 +278,9 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 			cv::Mat bgrImg;  
 			cv::Mat maskImg(height, width, CV_8UC3);
 			cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
-			if (maskImg.channels() == 3)
+			/*if (maskImg.channels() == 3)
 			{
+				
 				for (int i = 0; i < height; i++)
 				{
 					for (int j = 0; j < width; j++)
@@ -301,8 +302,8 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 						}                   //black color
 					}
 				}
-			}
-			cv::imwrite("MaskMap.png", maskImg);
+			}*/
+			//cv::imwrite("MaskMap.png", maskImg);
 			cv::imwrite("HoleMap.png", bgrImg);
 			break;
 		}
