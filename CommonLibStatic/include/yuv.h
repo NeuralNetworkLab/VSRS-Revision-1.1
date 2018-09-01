@@ -18,6 +18,7 @@
 #include <opencv\cv.h>
 #include <opencv\highgui.h>
 #include <opencv\cvaux.h>
+using namespace cv;
 #endif
 
 #include "upsample.h"
@@ -43,6 +44,7 @@ public:
 
   bool      setData444_inIBGR    (CIYuv<PixelType> *yuvSrc);
   bool      setData444_inIYUV    (CIYuv<PixelType> *yuvSrc);
+  
 
   bool      setUpsampleFilter    (unsigned int filter, unsigned int precision);
   bool      upsampling        (CIYuv<PixelType> *src, int padding_size=0);
@@ -278,7 +280,7 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 			cv::Mat bgrImg;  
 			cv::Mat maskImg(height, width, CV_8UC3);
 			cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
-			/*if (maskImg.channels() == 3)
+			if (maskImg.channels() == 3)
 			{
 				
 				for (int i = 0; i < height; i++)
@@ -302,9 +304,19 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 						}                   //black color
 					}
 				}
-			}*/
+			}
 			//cv::imwrite("MaskMap.png", maskImg);
-			cv::imwrite("HoleMap.png", bgrImg);
+			//cv::imwrite("VirtualViewPicture.png", bgrImg);
+			cv::Mat edge, edge_x, abs_edge_x, edge_y, abs_edge_y;
+			cv::Scharr(bgrImg, edge_x, -1, 1, 0);
+			cv::Scharr(bgrImg, edge_y, -1, 0, 1);
+			cv::convertScaleAbs(edge_x, abs_edge_x);
+			cv::convertScaleAbs(edge_y, abs_edge_y);
+			cv::addWeighted(abs_edge_x, 0.5, abs_edge_y, 0.5, 0, edge);
+			edge = abs_edge_x + abs_edge_y;
+			//cv::imwrite("virtualedge.bmp", edge);
+
+			cv::waitKey(0);
 			break;
 		}
 	}
@@ -331,7 +343,7 @@ void CIYuv<PixelType>::setDataFromImgYUV(IplImage *imgYUV)
 			}
 		}
 		break;
-	case 420:
+	case 420:                                 //VSRS is yuv444
 		for (h = 0; h<height; h += 2)
 		{
 			bufYUV1 = (unsigned char *)&(imgYUV->imageData[h   *imgYUV->widthStep]);
@@ -748,5 +760,4 @@ bool CIYuv<PixelType>::upsampling(CIYuv<PixelType> *src,int padding_size)
 
 	return true;
 }
-
 #endif

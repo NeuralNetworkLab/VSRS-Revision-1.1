@@ -56,12 +56,13 @@ int main(int argc, char *argv[])
 	CViewInterpolation cViewInterpolation;
 	CIYuv<ImageType> yuvBuffer;
 
+	cv::Mat bgrImg;
 #ifdef OUTPUT_COMPUTATIONAL_TIME
 	clock_t start, finish, first;
 	first = start = clock();
 #endif
 	printf(argv[0]);
-	printf("View Synthesis Reference Software (modified version), Version %.2f\n", VERSION);
+	printf("\nView Synthesis Reference Software (modified version), Version %.2f\n", VERSION);
 	printf("MPEG-I Visual, April 2017\n");
 	printf("Revision by Nerul Network and Image processing Lab of SWUST\n\n");
 
@@ -92,28 +93,38 @@ int main(int argc, char *argv[])
 	//for(n = cParameter.getStartFrame(); n < cParameter.getStartFrame() + cParameter.getNumberOfFrames(); n++) 
 	//{
 	n = cParameter.getStartFrame();
-	printf("frame number = %d ", n);
+	printf("frame number = %d \n", n);
 
 	// 读取深度图的一帧
-	if (!cViewInterpolation.getDepthBufferLeft()->readOneFrame(fin_depth_l, n) ||
-		!cViewInterpolation.getDepthBufferRight()->readOneFrame(fin_depth_r, n))
+	if (!cViewInterpolation.getDepthBufferLeft()->readOneFrame(fin_depth_l, n) 
+	//	||!cViewInterpolation.getDepthBufferRight()->readOneFrame(fin_depth_r, n)
+		)
 	{
 		fprintf(stderr, "Can't read depth frame\n");
 		return 3;
 	}
-	printf(".");
+	cv::Mat depImg(cParameter.getSourceHeight(), cParameter.getSourceWidth(), CV_8UC1, cViewInterpolation.getDepthBufferLeft()->getBuffer());
+	cv::cvtColor(depImg, bgrImg, CV_YUV2BGR_I420);
+	cv::imwrite("Origindepth.png", depImg);
 
 	cViewInterpolation.setFrameNumber(n - cParameter.getStartFrame());   //the index the frame
 
 	// 读取视图的一帧
 	if (!yuvBuffer.readOneFrame(fin_view_l, n)) return 3;
+
+	cv::Mat yuvImg(cParameter.getSourceHeight() * 3 / 2, cParameter.getSourceWidth(), CV_8UC1, yuvBuffer.getBuffer());
+	cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
+	cv::imwrite("OriginLeft.png", bgrImg);
+
+	printf("Have load depth and origin left image");
+
 	// 并在CViewInterpolation中载入左右视图数据，用 1, 0 来指定是 left 还是 right
 	if (!cViewInterpolation.SetReferenceImage(1, &yuvBuffer))return 3;
 	printf(".");
 
-	if (!yuvBuffer.readOneFrame(fin_view_r, n))return 3;
-	if (!cViewInterpolation.SetReferenceImage(0, &yuvBuffer))return 3;
-	printf(".");
+	//if (!yuvBuffer.readOneFrame(fin_view_r, n))return 3;
+	//if (!cViewInterpolation.SetReferenceImage(0, &yuvBuffer))return 3;
+	//printf(".");
 
 	// 视图合成
 	if (!cViewInterpolation.DoViewInterpolation(&yuvBuffer)) return 3;

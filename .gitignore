@@ -7,3 +7,7 @@
 *.tlog
 *.pdb
 *.db
+
+*.ipch
+
+*.png

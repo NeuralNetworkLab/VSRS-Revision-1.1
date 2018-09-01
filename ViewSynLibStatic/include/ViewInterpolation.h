@@ -53,7 +53,7 @@ private:
 
   CIYuv<DepthType>*          m_pcDepthMapLeft;       //!> To store the depth map of the left reference view
   CIYuv<DepthType>*          m_pcDepthMapRight;      //!> To store the depth map of the right reference view
-  CIYuv<ImageType>*          m_pcImageLeft;          //!> To store the image of the left reference view ???
+  CIYuv<ImageType>*          m_pcImageLeft;          //!> To store the image of the left reference view 
   CIYuv<ImageType>*          m_pcImageRight;
   CIYuv<ImageType>*          m_pcTempYuvLeft;
   CIYuv<ImageType>*          m_pcTempYuvRight;

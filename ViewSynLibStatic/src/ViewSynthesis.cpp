@@ -1,8 +1,5 @@
-/*
- *
- * View Synthesis using general mode
- *
- */
+/* View Synthesis using general mode
+*/
 
 #include "ViewSynthesis.h"
 
@@ -13,7 +10,6 @@
 #include <opencv\cvaux.h>
 #endif
 #include "opencv2/photo/photo.hpp"
-
 
  //#pragma comment(lib, "cv.lib")
  //#pragma comment(lib, "cxcore.lib")
@@ -47,7 +43,7 @@ int ascending(const BYTE *a, const BYTE *b)
   return 0;
 }
 
-//Class name CViewSynthesis was changed to CViewInterpolationGeneral. 
+//Class name CViewSynthesis was changed to CViewInterpolationGeneral.
 
 CViewInterpolationGeneral::CViewInterpolationGeneral()
 {
@@ -196,7 +192,7 @@ void CViewInterpolationGeneral::cvexMedian(IplImage* dst)
 {
   IplImage* buf = cvCloneImage(dst);
   cvSmooth(buf, dst, CV_MEDIAN);
-  cvReleaseImage(&buf);          
+  cvReleaseImage(&buf);
 }
 
 void CViewInterpolationGeneral::cvexBilateral(IplImage* dst, int sigma_d, int sigma_c)
@@ -278,7 +274,7 @@ bool CViewInterpolationGeneral::InitLR(UInt uiWidth, UInt uiHeight, UInt uiPreci
 
   if (!m_pcViewSynthesisLeft->Init(uiWidth, uiHeight, uiPrecision, uiDepthType,
 #ifdef NICT_IVSRS
-    // NICT start  
+    // NICT start
     m_uiIvsrsInpaint,
     // NICT end
 #endif
@@ -288,7 +284,7 @@ bool CViewInterpolationGeneral::InitLR(UInt uiWidth, UInt uiHeight, UInt uiPreci
   ))  return false;
   if (!m_pcViewSynthesisRight->Init(uiWidth, uiHeight, uiPrecision, uiDepthType,
 #ifdef NICT_IVSRS
-    // NICT start  
+    // NICT start
     m_uiIvsrsInpaint,
     // NICT end
 #endif
@@ -320,7 +316,7 @@ bool CViewInterpolationGeneral::InitLR(UInt uiWidth, UInt uiHeight, UInt uiPreci
 
 bool CViewInterpolationGeneral::Init(UInt uiWidth, UInt uiHeight, UInt uiPrecision, UInt uiDepthType,
 #ifdef NICT_IVSRS
-  // NICT start  
+  // NICT start
   UInt uiIvsrsInpaint,
   // NICT end
 #endif
@@ -605,8 +601,8 @@ void CViewInterpolationGeneral::makeHomography(
 
     cvFindHomography(src_points, dst_points, matH_F2T[i]);
     cvInvert(matH_F2T[i], matH_T2F[i], CV_LU);
-    //cvFindHomography(dst_points, src_points, matH_T2F[i]);  
-    //cvFindHomography(src_points, dst_points, matH_T2F[i]);  
+    //cvFindHomography(dst_points, src_points, matH_T2F[i]);
+    //cvFindHomography(src_points, dst_points, matH_T2F[i]);
     //cvInvert(matH_T2F[i], matH_F2T[i], CV_LU);
   }
 #endif
@@ -660,7 +656,7 @@ bool CViewInterpolationGeneral::init_3Dwarp(double Z_near, double Z_far, unsigne
                   0,0,1,1,1,0,0 };
   m_pConvKernel = cvCreateStructuringElementEx(7, 7, 3, 3, CV_SHAPE_CUSTOM, kernel);
 
-  temp1 = 1.0 / Z_near - 1.0 / Z_far;
+  temp1 = 1.0 / Z_near - 1.0 / Z_far;    //the  Difference
   temp2 = 1.0 / Z_far;
 
 #ifdef POZNAN_DEPTH_PROJECT2COMMON
@@ -670,18 +666,19 @@ bool CViewInterpolationGeneral::init_3Dwarp(double Z_near, double Z_far, unsigne
 
   switch (uiDepthType)
   {
-  case 0:
+  case 0:                          //Depth from camera
     for (i = 0; i < MAX_DEPTH; i++)
     {
       distance = 1.0 / (double(i)*temp1 / (MAX_DEPTH - 1.0) + temp2);
       //tableD2Z[i] = cvmGet(lMat_ex_c2w[0], 2, 2) * distance + cvmGet(lMat_ex_c2w[0], 2, 3);
-      tableD2Z[i] = cvmGet(lMat_ex_c2w[0], 2, 2) * distance + Mat_Trans_Ref[2];
+      tableD2Z[i] = cvmGet(lMat_ex_c2w[0], 2, 2) * distance + Mat_Trans_Ref[2];  //rotation marix([3,3] corresponds Z)translation martrix C[X,Y,Z] 平移矩阵
+	  //here hypothesis X=0 Y=0, the process of (0,0,D) to (0,0,Z) in every pixel value
 #ifdef POZNAN_GENERAL_HOMOGRAPHY
       m_dTableD2Z[i] = tableD2Z[i];
 #endif
     }
     break;
-  case 1:
+  case 1:                           //Depth from the origin of 3D space
     for (i = 0; i < MAX_DEPTH; i++)
     {
       tableD2Z[i] = 1.0 / (double(i)*temp1 / (MAX_DEPTH - 1.0) + temp2);
@@ -694,7 +691,7 @@ bool CViewInterpolationGeneral::init_3Dwarp(double Z_near, double Z_far, unsigne
     return false;
   }
 
-  makeHomography(m_matH_R2V, m_matH_V2R, tableD2Z, lMat_in[0], lMat_ex_c2w[0], lMat_proj_w2i[1]);
+  makeHomography(m_matH_R2V, m_matH_V2R, tableD2Z, lMat_in[0], lMat_ex_c2w[0], lMat_proj_w2i[1]);  //do homography on X axis
 
   // need to be modify (currently only the special case is supported)
   // All cameras must be placed on the x-axis and their direction be the z-axis (either positive or negative)
@@ -743,7 +740,7 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
   int h, w, u, v;
   int window_size = 3;
 
-#ifdef POZNAN_GENERAL_HOMOGRAPHY
+#ifdef POZNAN_GENERAL_HOMOGRAPHY   //HOMOGRAPHY(单应性)---one matrix that reflect one pic into another pic in same planar
   CvMat* m = cvCreateMat(4, 1, CV_64F);
   CvMat* mv = cvCreateMat(4, 1, CV_64F);
 #else
@@ -763,14 +760,14 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
       cvmSet(m, 1, 0, h);
       cvmSet(m, 2, 0, 1.0);
       cvmSet(m, 3, 0, 1.0 / m_dTableD2Z[pDepthMap[h][w]]);
-      cvmMul(m_matH_R2V, m, mv);
+      cvmMul(m_matH_R2V, m, mv);  //mv=m_matH_R2V*m use homograph to compute virtual view
 #else
       cvmSet(m, 0, 0, w);
       cvmSet(m, 1, 0, h);
       cvmSet(m, 2, 0, 1);
       cvmMul(m_matH_R2V[pDepthMap[h][w]], m, mv);
 #endif
-      u = mv->data.db[0] / mv->data.db[2] + 0.5;
+      u = mv->data.db[0] / mv->data.db[2] + 0.5;      //u,v is the position in pixel coordinate system
       v = mv->data.db[1] / mv->data.db[2] + 0.5;
 
       int iDepth = pDepthMap[h][w];
@@ -792,7 +789,6 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
   median_filter_depth(m_imgTemp[0], m_imgVirtualDepth, m_imgMask[0], m_imgSuccessSynthesis, 1, 1, true);
 #else
   /* smooth the hole twice */
-  cvSaveImage("0.bmp", m_imgSuccessSynthesis);
   cvNot(m_imgSuccessSynthesis, m_imgHoles); // m_imgHoles express holes before smoothing
   cvSmooth(m_imgHoles, m_imgTemp[0], CV_MEDIAN, window_size); // m_imgTemp[0] express holes after smoothing    3*3 median filter
   cvAnd(m_imgSuccessSynthesis, m_imgTemp[0], m_imgMask[0]); // holes which were not holes before smoothing   m_imgMask[0]=smoothHoles&pic
@@ -804,13 +800,13 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
   cvAnd(m_imgSuccessSynthesis, m_imgHoles, m_imgMask[1]); // holes which were not holes before 2nd smoothing
   cvCopy(m_imgTemp[0], m_imgHoles, m_imgMask[1]); // m_imgHoles express holes after 2nd smoothing
 
-  cvSaveImage("1.bmp", m_imgVirtualDepth); 
+  cvSaveImage("depth1.bmp", m_imgVirtualDepth);
   cvSmooth(m_imgVirtualDepth, m_imgDepthTemp[1], CV_MEDIAN, window_size); // 1st 3x3 median
   cvCopy(m_imgVirtualDepth, m_imgDepthTemp[1], m_imgMask[0]);
-  cvSaveImage("2.bmp", m_imgDepthTemp[1]);
+  cvSaveImage("depth2.bmp", m_imgDepthTemp[1]);
   cvSmooth(m_imgDepthTemp[1], m_imgVirtualDepth, CV_MEDIAN, window_size); // 2nd 3x3 median
   cvCopy(m_imgDepthTemp[1], m_imgVirtualDepth, m_imgMask[1]);
-  cvSaveImage("3.bmp", m_imgVirtualDepth);
+  cvSaveImage("depth3.bmp", m_imgVirtualDepth);
 
   cvSmooth(m_imgHoles, m_imgTemp[0], CV_MEDIAN, window_size); // m_imgTemp[0] express holes after smoothing
   cvAnd(m_imgSuccessSynthesis, m_imgTemp[0], m_imgMask[0]); // holes which were not holes before smoothing
@@ -823,13 +819,72 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp(DepthType **pDepthMap, Ima
 
   cvSmooth(m_imgVirtualDepth, m_imgDepthTemp[1], CV_MEDIAN, window_size); // 3rd 3x3 median
   cvCopy(m_imgVirtualDepth, m_imgDepthTemp[1], m_imgMask[0]);
-  cvSaveImage("4.bmp", m_imgDepthTemp[1]);
+  cvSaveImage("depth4.bmp", m_imgDepthTemp[1]);
   cvSmooth(m_imgDepthTemp[1], m_imgVirtualDepth, CV_MEDIAN, window_size); // 4th 3x3 median
   cvCopy(m_imgDepthTemp[1], m_imgVirtualDepth, m_imgMask[1]);
-  cvSaveImage("5.bmp", m_imgVirtualDepth);
-
-  cvSaveImage("7.bmp", m_imgHoles);
+  cvSaveImage("depth5.bmp", m_imgVirtualDepth);
+  cvSaveImage("MaskMap.png", m_imgHoles);
   cvNot(m_imgHoles, m_imgSuccessSynthesis);
+  //cvOr(m_imgVirtualDepth, m_imgHoles, m_imgDepthTemp[1], m_imgHoles);
+  cvOr(m_imgVirtualDepth, m_imgHoles, m_imgDepthTemp[1], m_imgHoles);
+  cvSaveImage("DepthWithHoles.bmp", m_imgDepthTemp[1]);
+
+  // detect contours in holes image 
+  vector<vector<Point> > contours;
+  vector<Vec4i> hierarchy;
+  Mat dst = Mat::zeros(m_imgHoles->height, m_imgHoles->width, CV_8UC3);
+  Mat singleHole = Mat::zeros(m_imgHoles->height, m_imgHoles->width, CV_8UC3);
+  findContours((Mat)m_imgHoles, contours, hierarchy,
+	  CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+
+  
+  // iterate through all the top-level contours
+  int temp_x, temp_y = -1;
+  Vec3b color = { 255,255,255 };
+  for (int i = 0; i < contours.size(); i++)
+  {
+	  //int max = max > contours[i].size() ? max : contours[i].size();
+	  if (contours[i].size() >= 1680&& contours[i].size()< 1710)
+	  {
+		  Scalar white = {255, 255, 255};
+		  drawContours(singleHole, contours, i, white, CV_FILLED);
+		  imwrite("SingleHole.bmp", singleHole);
+		  for (int j = 0; j<contours[i].size(); j++)
+		  {
+			  temp_x = contours[i][j].x;
+			  temp_y = contours[i][j].y;
+			  for (int k = 0; k < contours[i].size(); k++)
+			  {
+				 //temp_x = ((temp_x < contours[i][k].x)&&(contours[i][k].y == temp_y)) ? temp_x : contours[i][k].x;
+				 if (temp_x < contours[i][k].x && contours[i][k].y == temp_y)
+					  temp_x = contours[i][k].x;
+			  }
+			  ////Find the most left pixel in every rows of contour
+			  //dst.at<Vec3b>(temp_y, temp_x) = color;
+			  for (int z = 0; z < temp_x-1; z++)
+			  {
+				 dst.at<Vec3b>(temp_y, z) =  color;
+			  }
+			  //and draw a line  from 0 to it in x axis
+		  }
+	  }
+  }
+  //drawContours(dst, contours, -1, color, CV_FILLED, 8, hierarchy);
+  //namedWindow("Components", 1);
+  //imshow("Components", dst);
+  //waitKey(0);
+  imwrite("ForeGround.bmp", dst);
+
+  cv::Mat edge,edge_x, abs_edge_x, edge_y, abs_edge_y;
+  cv::Scharr(cv::Mat(m_imgHoles), edge_x, -1, 1, 0);
+  cv::Scharr(cv::Mat(m_imgHoles), edge_y, -1, 0, 1);
+  cv::convertScaleAbs(edge_x, abs_edge_x);
+  cv::convertScaleAbs(edge_y, abs_edge_y);
+  cv::addWeighted(abs_edge_x, 0.5, abs_edge_y, 0.5, 0, edge);
+  edge = abs_edge_x + abs_edge_y;
+  cv::imwrite("HolesEdge.bmp", edge);;
+
 #endif
 
   cvReleaseMat(&m);
@@ -861,13 +916,13 @@ bool CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp(ImageType ***src, D
       if (m_pSuccessSynthesis[h][w] == 0) continue;
 
       ptv = w + h * m_uiWidth;
-#ifdef POZNAN_GENERAL_HOMOGRAPHY
+#ifdef POZNAN_GENERAL_HOMOGRAPHY   //HOMOGRAPHY(单应性)---one matrix
       cvmSet(mv, 0, 0, w);
       cvmSet(mv, 1, 0, h);
       cvmSet(mv, 2, 0, 1.0);
       cvmSet(mv, 3, 0, 1.0 / m_dTableD2Z[m_pVirtualDepth[h][w]]);
 
-      cvmMul(m_matH_V2R, mv, m);
+      cvmMul(m_matH_V2R, mv, m);        //m=m_matH_V2R*mv
 #else
       cvmSet(mv, 0, 0, w);
       cvmSet(mv, 1, 0, h);
@@ -911,10 +966,11 @@ bool CViewInterpolationGeneral::viewsynthesis_reverse_3Dwarp(ImageType ***src, D
 #ifdef NICT_IVSRS
   }
 #endif
-  cvSaveImage("6.bmp", m_imgVirtualImage);
-  cvSaveImage("7.bmp", m_imgSuccessSynthesis);
+  //cvSaveImage("holes_black.bmp", m_imgSuccessSynthesis);
   cvNot(m_imgSuccessSynthesis, m_imgHoles);
-  cvSaveImage("MaskMap.png", m_imgHoles);
+  //cvAnd(m_imgVirtualImage, m_imgHoles, m_imgVirtualImage, m_imgHoles);
+  cvSaveImage("virtualview.bmp", m_imgVirtualImage);
+  cvSaveImage("MaskMap1.png", m_imgHoles);
   return true;
 }
 
@@ -1082,11 +1138,11 @@ bool CViewInterpolationGeneral::depthsynthesis_3Dwarp_ipel(DepthType **pDepthMap
     }
   }
   //cvSaveImage("5a.bmp", m_imgVirtualDepth);
-  //cvSaveImage("6a.bmp", m_imgSuccessSynthesis);  
+  //cvSaveImage("6a.bmp", m_imgSuccessSynthesis);
   cvexMedian(m_imgVirtualDepth);
   cvexBilateral(m_imgVirtualDepth, sigma_d, sigma_c);
   cvexMedian(m_imgSuccessSynthesis);
-  cvNot(m_imgSuccessSynthesis, m_imgHoles); // pixels which couldn't be synthesized    
+  cvNot(m_imgSuccessSynthesis, m_imgHoles); // pixels which couldn't be synthesized
   cvReleaseMat(&m);
   cvReleaseMat(&mv);
   //cvSaveImage("5.bmp", m_imgVirtualDepth);
@@ -1206,7 +1262,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 	{
 		// NICT end
 #endif
-		cvAnd(m_pcViewSynthesisLeft->getUnstablePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // Left dilated Mask[0] * Right Success -> Left Mask[3] // dilated hole fillable by Right 
+		cvAnd(m_pcViewSynthesisLeft->getUnstablePixels(), m_pcViewSynthesisRight->getSynthesizedPixels(), m_imgMask[3]); // Left dilated Mask[0] * Right Success -> Left Mask[3] // dilated hole fillable by Right
 #ifdef NICT_IVSRS
 	}
 #endif
@@ -1275,7 +1331,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 	}
 
 	// pixels which couldn't be synthesized from both left and right -> inpainting
-	cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getHolePixels(), m_imgMask[2]); // Left Hole * Right Hole -> Mask[2] // common hole, 
+	cvAnd(m_pcViewSynthesisLeft->getHolePixels(), m_pcViewSynthesisRight->getHolePixels(), m_imgMask[2]); // Left Hole * Right Hole -> Mask[2] // common hole,
 
 #ifdef POZNAN_DEPTH_BLEND
 #define GETUCHAR(x,ptr) (((unsigned char*)x)[ptr])
@@ -1308,7 +1364,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 					((DepthType*)m_imgBlendedDepth->imageData)[ptv] = CLIP3((((DepthType*)DepthLeft->imageData)[ptv] * m_dWeightLeft + ((DepthType*)DepthRight->imageData)[ptv] * m_dWeightRight) / (m_dWeightLeft + m_dWeightRight), 0, MAX_DEPTH - 1);
 				}
 #endif
-				// NICT end	  
+				// NICT end
 			}
 			// NICT start
 			else if ((((DepthType*)DepthLeft->imageData[ptv]) > ((DepthType*)DepthRight->imageData[ptv]))) //Fix to compare z // left is nearer (NICT)
@@ -1324,7 +1380,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 					m_imgBlendedDepth->imageData[ptv] = DepthLeft->imageData[ptv];
 				}
 # endif
-				// NICT end	  
+				// NICT end
 			}
 			else /*if((m_imgMask[3]->imageData[ptv]!=0))*/ //Fix should be mixed together // Right is closer
 			{
@@ -1338,13 +1394,13 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 					m_imgBlendedDepth->imageData[ptv] = DepthRight->imageData[ptv];
 				}
 # endif
-				// NICT end	  
+				// NICT end
 			}
 		}
 	}
 	//m_imgBlended
 
-#else 
+#else
 	cvAddWeighted(m_pcViewSynthesisLeft->getVirtualImage(), m_dWeightLeft, m_pcViewSynthesisRight->getVirtualImage(), m_dWeightRight, 0, m_imgBlended); // Left VImage * LWeight + Rigt VImage * RWeight -> Blended
 #endif
 
@@ -1435,7 +1491,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						for (v = 1; v <= h; v++) // sesarch top
 						{
 							mptv -= m_uiWidth;
-							if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
+							if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole
 							{
 								mflag = true;
 								if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
@@ -1448,7 +1504,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 							delta = v << 1;
 							if (delta > left) llflag = true;
 							llptv = mptv - delta;
-							if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
+							if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole
 							{
 								llflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
@@ -1461,7 +1517,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 							delta = v;
 							if (delta > left) lflag = true;
 							lptv = mptv - delta;
-							if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
+							if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole
 							{
 								lflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
@@ -1474,7 +1530,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 							delta = v >> 1;
 							if (delta > left) lmflag = true;
 							lmptv = mptv - delta;
-							if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
+							if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole
 							{
 								lmflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
@@ -1487,7 +1543,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 							delta = v >> 1;
 							if (delta > right) mrflag = true;
 							mrptv = mptv + delta;
-							if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
+							if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole
 							{
 								mrflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
@@ -1501,7 +1557,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 
 							if (delta > right) rflag = true;
 							rptv = mptv + delta;
-							if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
+							if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole
 							{
 								rflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
@@ -1514,7 +1570,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 							delta = v << 1;
 							if (delta > right) rrflag = true;
 							rrptv = mptv + delta;
-							if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
+							if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole
 							{
 								rrflag = true;
 								if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
@@ -1536,7 +1592,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 					for (v = 1; v < m_uiHeight - h; v++) // sesarch bottom
 					{
 						mptv += m_uiWidth;
-						if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole 
+						if (mflag == false && m_imgMask[2]->imageData[mptv] == 0) // not hole
 						{
 							mflag = true;
 							if (refdepth > (DepthType) m_imgBlendedDepth->imageData[mptv])
@@ -1550,7 +1606,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						if (delta > left) llflag = true;
 						llptv = mptv - delta;
 
-						if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole 
+						if (llflag == false && m_imgMask[2]->imageData[llptv] == 0) // not hole
 						{
 							llflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[llptv])
@@ -1563,7 +1619,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						delta = v;
 						if (delta > left) lflag = true;
 						lptv = mptv - delta;
-						if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole 
+						if (lflag == false && m_imgMask[2]->imageData[lptv] == 0) // not hole
 						{
 							lflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lptv])
@@ -1576,7 +1632,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						delta = v >> 1;
 						if (delta > left) lmflag = true;
 						lmptv = mptv - delta;
-						if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole 
+						if (lmflag == false && m_imgMask[2]->imageData[lmptv] == 0) // not hole
 						{
 							lmflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[lmptv])
@@ -1589,7 +1645,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						delta = v >> 1;
 						if (delta > right) mrflag = true;
 						mrptv = mptv + delta;
-						if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole 
+						if (mrflag == false && m_imgMask[2]->imageData[mrptv] == 0) // not hole
 						{
 							mrflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[mrptv])
@@ -1602,7 +1658,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						delta = v;
 						if (delta > right) rflag = true;
 						rptv = mptv + delta;
-						if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole 
+						if (rflag == false && m_imgMask[2]->imageData[rptv] == 0) // not hole
 						{
 							rflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rptv])
@@ -1615,7 +1671,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 						delta = v << 1;
 						if (delta > right) rrflag = true;
 						rrptv = mptv + delta;
-						if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole 
+						if (rrflag == false && m_imgMask[2]->imageData[rrptv] == 0) // not hole
 						{
 							rrflag = true;
 							if (refdepth > (DepthType)m_imgBlendedDepth->imageData[rrptv])
@@ -1629,7 +1685,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 					} // v for bottom half
 
 					// inpaint
-				//		if(refdepth == 255) continue;	// do nothing	
+				//		if(refdepth == 255) continue;	// do nothing
 					ref = refptv * 3;
 					for (varptv = leftptv + 1; varptv < rightptv; varptv++)
 					{
@@ -1647,7 +1703,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 		cvErode(m_imgMask[2], m_imgMask[2]); // use pre-inpainted pixels for smoothing
 		cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 3, CV_INPAINT_TELEA); // NICT use small kernel // smooth pre-inpainted area
 
-		//  cvSaveImage("7.bmp", m_imgInterpolatedView); // NICT  
+		//  cvSaveImage("7.bmp", m_imgInterpolatedView); // NICT
 
 		cvOr(m_imgMask[3], m_imgMask[4], m_imgMask[2]); // filled hole mask
 
@@ -1768,7 +1824,7 @@ int CViewInterpolationGeneral::DoOneFrameGeneral(ImageType*** RefLeft, ImageType
 		///cvSaveImage("Mask2.bmp",m_imgMask[2]);
 		cvSet(m_imgBlended, CV_RGB(0, 128, 128), m_imgMask[2]);
 		cvInpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, CV_INPAINT_NS);
-		//inpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, INPAINT_NS); 
+		//inpaint(m_imgBlended, m_imgMask[2], m_imgInterpolatedView, 5, INPAINT_NS);
 #ifdef NICT_IVSRS
 	}
 #endif
