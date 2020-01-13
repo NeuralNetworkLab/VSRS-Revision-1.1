@@ -258,7 +258,7 @@ bool CViewInterpolation::SetReferenceImage(int iLeft, CIYuv<ImageType> *pcYuv)
  *    false: if fails.
  */
  
-bool CViewInterpolation::DoViewInterpolation( CIYuv<ImageType>* pSynYuvBuffer )
+bool CViewInterpolation::DoViewInterpolation( CIYuv<ImageType>* pSynYuvBuffer, int n)
 {
   /*
 	ImageType*** RefLeft  = m_pcImageLeft->getData();
@@ -270,9 +270,9 @@ bool CViewInterpolation::DoViewInterpolation( CIYuv<ImageType>* pSynYuvBuffer )
   // 我们的文件类型为 0，所以是 通用模型
   bool ret = false;
   if (m_iSynthesisMode == 0) // General mode
-    ret = xViewInterpolationGeneralMode( pSynYuvBuffer );
+    ret = xViewInterpolationGeneralMode( pSynYuvBuffer,n);
   else if(m_iSynthesisMode == 1) // 1-D mode
-    ret = xViewInterpolation1DMode( pSynYuvBuffer );
+    ret = xViewInterpolation1DMode( pSynYuvBuffer,n);
     
   if (ret == false)
     return ret;
@@ -280,7 +280,7 @@ bool CViewInterpolation::DoViewInterpolation( CIYuv<ImageType>* pSynYuvBuffer )
   return ret;
 }
 
-bool CViewInterpolation::xViewInterpolationGeneralMode(CIYuv<ImageType>* pSynYuvBuffer)
+bool CViewInterpolation::xViewInterpolationGeneralMode(CIYuv<ImageType>* pSynYuvBuffer,int n)
 {
   ImageType*** RefLeft  = m_pcImageLeft->getData();
   ImageType*** RefRight = m_pcImageRight->getData();
@@ -288,12 +288,15 @@ bool CViewInterpolation::xViewInterpolationGeneralMode(CIYuv<ImageType>* pSynYuv
   DepthType** RefDepthRight = m_pcDepthMapRight->Y;  
   
   // 在该函数中进行创建，生成
-  if ( 0 != m_pViewSynthesisGeneral->DoOneFrameGeneral(RefLeft, RefRight, RefDepthLeft, RefDepthRight, pSynYuvBuffer) )
+  if ( 0 != m_pViewSynthesisGeneral->DoOneFrameGeneral(RefLeft, RefRight, RefDepthLeft, RefDepthRight, pSynYuvBuffer, n) )
     return false;
+
+  
 
   // 此处使用的是通用模型，而在 DoOneFrame 里面，有具体的 leftView 和 rightView
   // 考虑是否应该在那个函数里面获取具体的图像数据
-  
+  return true;
+
   //下面的代码是边界噪音除去算法，可以忽略
   if (getBoundaryNoiseRemoval())  {
       CIYuv<ImageType> pRefLeft;
@@ -340,7 +343,7 @@ bool CViewInterpolation::xViewInterpolationGeneralMode(CIYuv<ImageType>* pSynYuv
  *    true:  if succeed;
  *    false: if fails.
  */
-bool CViewInterpolation::xViewInterpolation1DMode( CIYuv<ImageType>* pSynYuvBuffer )
+bool CViewInterpolation::xViewInterpolation1DMode( CIYuv<ImageType>* pSynYuvBuffer,int n)
 {
   ImageType* RefLeft  = m_pcImageLeft->getBuffer();
   ImageType* RefRight = m_pcImageRight->getBuffer();

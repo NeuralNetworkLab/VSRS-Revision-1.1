@@ -87,7 +87,7 @@ public:
   void SetDepthBlendDiff(int iDepthBlendDiff) { m_iDepthBlendDiff = iDepthBlendDiff; }
 #endif
 
-  int  DoOneFrameGeneral(ImageType*** RefLeft, ImageType*** RefRight, DepthType** RefDepthLeft, DepthType** RefDepthRight, CIYuv<ImageType>* pSynYuvBuffer);
+  int  DoOneFrameGeneral(ImageType*** RefLeft, ImageType*** RefRight, DepthType** RefDepthLeft, DepthType** RefDepthRight, CIYuv<ImageType>* pSynYuvBuffer,int n);
   IplImage*  getImgSynthesizedViewLeft  ();
   IplImage*  getImgSynthesizedViewRight  ();
 
@@ -188,6 +188,7 @@ private:
   unsigned int  m_uiPrecision;
   unsigned int  m_uiDepthType;
   unsigned char  m_ucLeftSide;
+  CIYuv<ImageType> yuvimg;
 
   unsigned int  m_uiColorSpace;
   unsigned int  m_uiBoundaryNoiseRemoval;

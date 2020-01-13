@@ -7,3 +7,17 @@
 *.tlog
 *.pdb
 *.db
+
+windows/
+
+ViewSynLibStatic/Debug/
+
+bin/
+
+CommonLibStatic/Debug/
+
+ViewSyn/Debug/
+
+*.jpg
+
+*.png

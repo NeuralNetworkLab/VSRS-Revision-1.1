@@ -27,7 +27,7 @@ public:
 
   bool    Init(CParameterViewInterpolation& cParameter);
   bool    SetReferenceImage(int iLeft, CIYuv<ImageType> *pcYuv);// Set up the reference pictures
-  bool    DoViewInterpolation(CIYuv<ImageType>* pYuvBuffer);    // The main interface function to be called to perform view interpolation
+  bool    DoViewInterpolation(CIYuv<ImageType>* pYuvBuffer,int n);    // The main interface function to be called to perform view interpolation
 
   CIYuv<DepthType>*    getDepthBufferLeft      ()    { return m_pcDepthMapLeft; }
   CIYuv<DepthType>*    getDepthBufferRight      ()    { return m_pcDepthMapRight; }
@@ -36,8 +36,8 @@ public:
   void      setFrameNumber(int frame_number) { m_iFrameNumber = frame_number;}
 
 private:
-  bool    xViewInterpolationGeneralMode(CIYuv<ImageType>* pYuvBuffer);
-  bool    xViewInterpolation1DMode( CIYuv<ImageType>* pSynYuvBuffer );
+  bool    xViewInterpolationGeneralMode(CIYuv<ImageType>* pYuvBuffer,int n);
+  bool    xViewInterpolation1DMode( CIYuv<ImageType>* pSynYuvBuffer, int n);
   bool    xBoundaryNoiseRemoval(CIYuv<ImageType>* pRefLeft, CIYuv<ImageType>* pRefRight, CIYuv<DepthType>* pRefDepthLeft, CIYuv<DepthType>* pRefDepthRight, CIYuv<HoleType>* pRefHoleLeft, CIYuv<HoleType>* pRefHoleRight, CIYuv<ImageType>* pSynYuvBuffer, bool SynthesisMode);
   void    xFileConvertingforGeneralMode(CIYuv<ImageType>* pRefLeft, CIYuv<ImageType>* pRefRight, CIYuv<DepthType>* pRefDepthLeft, CIYuv<DepthType>* pRefDepthRight, CIYuv<HoleType>* pRefHoleLeft, CIYuv<HoleType>* pRefHoleRight);
   void    xFileConvertingfor1DMode     (CIYuv<ImageType>* pRefLeft, CIYuv<ImageType>* pRefRight, CIYuv<DepthType>* pRefDepthLeft, CIYuv<DepthType>* pRefDepthRight, CIYuv<HoleType>* pRefHoleLeft, CIYuv<HoleType>* pRefHoleRight);

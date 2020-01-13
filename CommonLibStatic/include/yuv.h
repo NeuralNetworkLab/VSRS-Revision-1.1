@@ -33,7 +33,7 @@ public:
   bool      resize          (int h, int w, int chroma_format);
   bool      readOneFrame      (FILE *fp, int frameno = -1);
   bool      writeOneFrame      (FILE *fp,int flag = 0);
-  
+  bool      writeOneFrameByName(char* filename = "VSRS.png");
   bool      writeOneFrame_inYUV(FILE *fp);  // GIST test
  
   void      getData_inBGR      (IplImage *imgBGR);
@@ -271,42 +271,34 @@ bool CIYuv<PixelType>::writeOneFrame(FILE *fp, int flag = 0)
 
 	if (flag == 1)       //write **.bmp file          There need some improvement in the future
 	{
-		switch (sampling)
-		{
+		//switch (sampling)
+		//{
+		//case 420:
+		//	cv::Mat yuvImg(height * 3 / 2, width, CV_8UC1, pBuffer);   //read yuv to a  OpenCV Mat
+		//	cv::Mat bgrImg;  
+		//	cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
+		//	/*cv::Mat maskImg(height, width, CV_8UC3);
+		//	cv::imwrite("MaskMap.jpg", maskImg);*/
+		//	
+		//	cv::imwrite("", bgrImg);
+		//	break;
+		//}
+	}
+	return true;
+}
+
+template <class PixelType>
+bool CIYuv<PixelType>::writeOneFrameByName(char* filename = "VSRS.png")
+{
+	switch (sampling)
+	{
 		case 420:
 			cv::Mat yuvImg(height * 3 / 2, width, CV_8UC1, pBuffer);   //read yuv to a  OpenCV Mat
-			cv::Mat bgrImg;  
-			cv::Mat maskImg(height, width, CV_8UC3);
+			cv::Mat bgrImg;
 			cv::cvtColor(yuvImg, bgrImg, CV_YUV2BGR_I420);
-			/*if (maskImg.channels() == 3)
-			{
-				
-				for (int i = 0; i < height; i++)
-				{
-					for (int j = 0; j < width; j++)
-					{
-						if (Y[i][j] == 0)        //&& U[(int)i / 2][(int)j / 2] == 0 && V[(int)i / 2][(int)j / 2] == 0
-						{
-							for (int k = 0; k < 3; k++)
-							{
-								maskImg.at<cv::Vec3b>(i, j)[k] = 255;
-								bgrImg.at<cv::Vec3b>(i, j)[k] = 255;
-							}
-						}                  //white color 
-						else
-						{
-							for (int k = 0; k < 3; k++)
-							{
-								maskImg.at<cv::Vec3b>(i, j)[k] = 0;
-							}
-						}                   //black color
-					}
-				}
-			}*/
-			//cv::imwrite("MaskMap.png", maskImg);
-			cv::imwrite("HoleMap.png", bgrImg);
+			cv::imwrite(filename, bgrImg);
 			break;
-		}
+		
 	}
 	return true;
 }
